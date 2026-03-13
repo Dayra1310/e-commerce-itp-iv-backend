@@ -1,0 +1,14 @@
+{
+  "name": "e-commerce-itp-iv-backend",
+  "version": "1.0.0",
+  "description": "Backend para e-commerce ITP IV",
+  "main": "src/index.js",
+  "type": "module",
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "node --watch src/index.js"
+  },
+  "dependencies": {
+    "fastify": "^5.2.0"
+  }
+}
