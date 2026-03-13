@@ -1,4 +1,4 @@
-import { mysqlTable, serial, varchar, timestamp, int, decimal } from 'drizzle-orm/mysql-core';
+import { mysqlTable, serial, varchar, timestamp } from 'drizzle-orm/mysql-core';
 
 export const users = mysqlTable('users', {
   id: serial('id').primaryKey(),
@@ -9,4 +9,3 @@ export const users = mysqlTable('users', {
   createdAt: timestamp('created_at').defaultNow(),
   updatedAt: timestamp('updated_at').defaultNow().onUpdateNow(),
 });
-

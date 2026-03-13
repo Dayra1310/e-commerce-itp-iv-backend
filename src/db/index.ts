@@ -1,8 +1,8 @@
 import { drizzle } from 'drizzle-orm/mysql2';
-import mysql from 'mysql2/promise';
+import mysql, { Pool } from 'mysql2/promise';
 import { config } from '../config/index.js';
 
-const pool = mysql.createPool({
+const pool: Pool = mysql.createPool({
   host: config.db.host,
   port: config.db.port,
   user: config.db.user,

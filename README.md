@@ -1,10 +1,10 @@
 # E-commerce ITP IV Backend
 
-Backend para el proyecto de e-commerce ITP IV desarrollado con Fastify y Node.js.
+Backend para el proyecto de e-commerce ITP IV desarrollado con Fastify, TypeScript y Vite.
 
 ## Requisitos
 
-- Node.js 24+
+- Node.js 20+
 - npm
 - MySQL 8.0+
 
@@ -31,14 +31,14 @@ DB_USER=root
 DB_PASSWORD=tu_password
 DB_NAME=ecommerce
 
-PORT=3000
+PORT=4200
 ```
 
 El archivo `.env.example` contiene la plantilla de variables requeridas.
 
 ## Configuración
 
-La configuración centralizada se encuentra en `src/config/index.js`. Este archivo lee las variables de entorno y las exporta de forma segura.
+La configuración centralizada se encuentra en `src/config/index.ts`. Este archivo lee las variables de entorno y las exporta de forma segura.
 
 ## Base de Datos
 
@@ -48,9 +48,9 @@ Este proyecto utiliza Drizzle ORM para la gestión de la base de datos MySQL.
 
 ### Esquemas
 
-Los esquemas se definen en `src/db/schema.js`. Si necesitas realizar cambios a nivel de base de datos (crear tablas, modificar columnas, etc.), debes:
+Los esquemas se definen en `src/db/schema.ts`. Si necesitas realizar cambios a nivel de base de datos (crear tablas, modificar columnas, etc.), debes:
 
-1. **Modificar los esquemas** en `src/db/schema.js`
+1. **Modificar los esquemas** en `src/db/schema.ts`
 2. **Generar las migraciones** con:
    ```bash
    npm run db:generate
@@ -64,8 +64,8 @@ Los esquemas se definen en `src/db/schema.js`. Si necesitas realizar cambios a n
 
 ```
 src/db/
-├── index.js    # Conexión a la base de datos
-└── schema.js   # Definición de tablas y esquemas
+├── index.ts    # Conexión a la base de datos
+└── schema.ts   # Definición de tablas y esquemas
 ```
 
 ## Desarrollo
@@ -76,8 +76,25 @@ Para iniciar el servidor en modo desarrollo:
 npm run dev
 ```
 
-El servidor estará disponible en `http://localhost:3000`
+El servidor estará disponible en `http://localhost:4200`
+
+## Build
+
+Para compilar el proyecto:
+
+```bash
+npm run build
+```
+
+Los archivos compilados se generarán en la carpeta `dist/`.
 
 ## Endpoints
 
 - `GET /health` - Verificar estado del servicio
+
+## Tecnologías
+
+- **Fastify** - Framework web
+- **TypeScript** - Lenguaje de programación
+- **Vite** - Build tool y servidor de desarrollo
+- **Drizzle ORM** - ORM para MySQL
