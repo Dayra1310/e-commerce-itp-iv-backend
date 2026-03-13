@@ -1,6 +1,7 @@
 
 import Fastify, { FastifyInstance } from 'fastify';
 import { config } from './config';
+import { authRoutes } from './modules/auth/controller.js';
 
 const fastify: FastifyInstance = Fastify({
   logger: true
@@ -12,6 +13,7 @@ fastify.get('/health', async (_request, _reply) => {
 
 const start = async (): Promise<void> => {
   try {
+    await fastify.register(authRoutes);
     await fastify.listen({ port: config.app.port});
   } catch (err) {
     fastify.log.error(err);

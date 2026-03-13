@@ -12,9 +12,15 @@ interface AppConfig {
   port: number;
 }
 
+interface JwtConfig {
+  secret: string;
+  expiresIn: string;
+}
+
 interface Config {
   db: DbConfig;
   app: AppConfig;
+  jwt: JwtConfig;
 }
 
 export const config: Config = {
@@ -27,5 +33,9 @@ export const config: Config = {
   },
   app: {
     port: parseInt(process.env.PORT || '4200', 10),
+  },
+  jwt: {
+    secret: process.env.JWT_SECRET || 'your-secret-key-change-in-production',
+    expiresIn: process.env.JWT_EXPIRES_IN || '7d',
   },
 };
