@@ -2,6 +2,7 @@ import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import * as service from './service.js';
 import type { RegisterInput, LoginInput } from './types.js';
 
+
 export const registerController = async (
   request: FastifyRequest<{ Body: RegisterInput }>,
   reply: FastifyReply
