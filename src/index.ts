@@ -1,7 +1,7 @@
-
-import Fastify, { FastifyInstance } from 'fastify';
+import Fastify, { FastifyInstance } from 'fastify'; 
 import { config } from './config';
 import { authRoutes } from './modules/auth/controller.js';
+import { supportTest } from "./modules/support/controller";
 
 const fastify: FastifyInstance = Fastify({
   logger: true
@@ -10,6 +10,8 @@ const fastify: FastifyInstance = Fastify({
 fastify.get('/health', async (_request, _reply) => {
   return { status: 'ok', timestamp: new Date().toISOString() };
 });
+
+fastify.get('/support', supportTest);
 
 const start = async (): Promise<void> => {
   try {
