@@ -67,9 +67,7 @@ app.post("/login", async (req, res) => {
         }
         const token = jwt.sign(
             {
-                id: resultados.id,
-                rol: resultados.rol,
-                nombre_rol: resultados.nombre_rol
+                id: resultados.id
             },
             process.env.SECRET_KEY,
             { expiresIn: "1h" }
