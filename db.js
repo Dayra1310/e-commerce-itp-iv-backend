@@ -150,9 +150,7 @@ const editarUsuario = async (usuario) => {
             return { ok: false, message: "datos inválidos para actualizar usuario" };
         }
 
-        const [duplicado] = await conexion.query(
-            "SELECT id FROM usuarios WHERE email = ? AND id != ? LIMIT 1",
-            [email, id]
+        const [duplicado] = await conexion.query("SELECT id FROM usuarios WHERE email = ? AND id != ? LIMIT 1",[email, id]
         );
         if (duplicado.length > 0) {
             return { ok: false, message: "ya existe otro usuario con ese email" };
