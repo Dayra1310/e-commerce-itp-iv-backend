@@ -2,6 +2,7 @@ node_modules/
 .env
 .env.*
 !.env.example
-dist/
+public/uploads/*
+!public/uploads/default.jpg
 *.log
 .DS_Store

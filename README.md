@@ -1,18 +1,12 @@
 # E-commerce ITP IV Backend
 
-Backend para el proyecto de e-commerce ITP IV desarrollado con Fastify, TypeScript y Vite.
+Backend Express para el módulo de login, perfil, carga de imagen de usuario y administración de usuarios.
 
 ## Requisitos
 
-- Node.js 20+
-- npm
-- MySQL 8.0+
-
-## Instalación de MySQL
-
-Se recomienda usar [DBngin](https://dbngin.com/) para instalar y gestionar MySQL de forma sencilla.
-
-Otra opción es instalar MySQL directamente desde [mysql.com](https://www.mysql.com/downloads/).
+- Node.js 20 o superior.
+- MySQL 8 o superior.
+- Base de datos con las tablas `usuarios` y `roles`.
 
 ## Instalación
 
@@ -20,81 +14,64 @@ Otra opción es instalar MySQL directamente desde [mysql.com](https://www.mysql.
 npm install
 ```
 
-## Variables de Entorno
+## Variables de entorno
 
-Crear un archivo `.env` en la raíz del proyecto con las siguientes variables:
+Copia `.env.example` como `.env` y ajusta las credenciales reales:
+
+```bash
+cp .env.example .env
+```
+
+Variables principales:
 
 ```env
+APP_PORT=3001
 DB_HOST=localhost
 DB_PORT=3306
 DB_USER=root
 DB_PASSWORD=tu_password
-DB_NAME=ecommerce
-
-PORT=4200
+DB_NAME=ecommerce_tableros
+JWT_SECRET=cambia_esta_clave_por_una_clave_larga_y_segura
+CORS_ORIGINS=http://127.0.0.1:5500,http://localhost:5500
 ```
 
-El archivo `.env.example` contiene la plantilla de variables requeridas.
+> No se debe versionar ni compartir el archivo `.env` real porque contiene credenciales.
 
-## Configuración
-
-La configuración centralizada se encuentra en `src/config/index.ts`. Este archivo lee las variables de entorno y las exporta de forma segura.
-
-## Base de Datos
-
-### Drizzle ORM
-
-Este proyecto utiliza Drizzle ORM para la gestión de la base de datos MySQL.
-
-### Esquemas
-
-Los esquemas se definen en `src/db/schema.ts`. Si necesitas realizar cambios a nivel de base de datos (crear tablas, modificar columnas, etc.), debes:
-
-1. **Modificar los esquemas** en `src/db/schema.ts`
-2. **Generar las migraciones** con:
-   ```bash
-   npm run db:generate
-   ```
-3. **Aplicar las migraciones** a la base de datos con:
-   ```bash
-   npm run db:migrate
-   ```
-
-### Estructura de archivos de base de datos
-
-```
-src/db/
-├── index.ts    # Conexión a la base de datos
-└── schema.ts   # Definición de tablas y esquemas
-```
-
-## Desarrollo
-
-Para iniciar el servidor en modo desarrollo:
+## Ejecución
 
 ```bash
 npm run dev
 ```
 
-El servidor estará disponible en `http://localhost:4200`
-
-## Build
-
-Para compilar el proyecto:
+Para producción/local sin nodemon:
 
 ```bash
-npm run build
+npm start
 ```
 
-Los archivos compilados se generarán en la carpeta `dist/`.
+## Endpoints principales
 
-## Endpoints
+| Método | Ruta | Protección | Descripción |
+|---|---|---|---|
+| GET | `/health` | Pública | Verifica estado del servidor. |
+| POST | `/login` | Pública | Inicia sesión y crea cookie `httpOnly`. |
+| POST | `/logout` | Sesión | Cierra sesión. |
+| GET | `/perfil` | Sesión | Devuelve datos del usuario autenticado. |
+| PUT | `/perfil` | Sesión | Actualiza nombre visible del usuario autenticado. |
+| PUT | `/usuario/imagen` | Sesión | Actualiza imagen de perfil. |
+| GET | `/admin` | Administrador | Valida acceso administrativo. |
+| GET | `/usuarios` | Administrador | Lista usuarios no cliente. |
+| GET | `/roles` | Administrador | Lista roles disponibles para administración. |
+| POST | `/agregarUsuario` | Administrador | Crea usuario administrativo. |
+| PUT | `/usuario/:id` | Administrador | Edita usuario administrativo. |
+| DELETE | `/eliminarUsuario/:id` | Administrador | Elimina usuario administrativo, excepto el usuario autenticado. |
 
-- `GET /health` - Verificar estado del servicio
+## Seguridad aplicada
 
-## Tecnologías
-
-- **Fastify** - Framework web
-- **TypeScript** - Lenguaje de programación
-- **Vite** - Build tool y servidor de desarrollo
-- **Drizzle ORM** - ORM para MySQL
+- Autenticación mediante JWT en cookie `httpOnly`.
+- El frontend no necesita guardar tokens.
+- Validación básica de email, teléfono, rol y longitud de contraseña.
+- Hash de contraseñas con `bcrypt`.
+- CORS restringido por `CORS_ORIGINS`.
+- Validación de formato y tamaño de imágenes.
+- Eliminación segura de imagen anterior, evitando rutas manipuladas.

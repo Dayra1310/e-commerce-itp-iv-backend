@@ -1,209 +1,323 @@
-import mysql from "mysql2/promise"
-import bcrypt from "bcrypt"
+import mysql from "mysql2/promise";
+import bcrypt from "bcrypt";
+import { configuracion } from "./config.js";
 
-const config = {
-    host: process.env.HOST,
-    user: process.env.USER,
-    password: process.env.PASSWORD,
-    database: process.env.DATABASE
-}
+const configConexion = {
+  host: process.env.DB_HOST,
+  port: process.env.DB_PORT,
+  user: process.env.DB_USER,
+  password: process.env.DB_PASSWORD,
+  database: process.env.DB_NAME,
+  connectionLimit: process.env.DB_CONNECTION_LIMIT,
+  queueLimit: 0,
+};
 
-const conexion = await mysql.createConnection(config)
+const conexion = mysql.createPool(configConexion);
 
-// LOGIN USUARIO
+const RONDAS_BCRYPT = process.env.BCRYPT_SALT_ROUNDS;
+const IMAGEN_DEFAULT = "default.jpg";
+
+const normalizarEmail = (email) => String(email ?? "").trim().toLowerCase();
+
+const crearRespuestaError = (message, status = 500) => ({ ok: false, message, status });
+
+const existeRol = async (rolId) => {
+  const [roles] = await conexion.query("SELECT id FROM roles WHERE id = ? LIMIT 1", [rolId]);
+  return roles.length > 0;
+};
+
+const obtenerUsuarioPorEmail = async (email) => {
+  const [usuarios] = await conexion.query(
+    `SELECT id FROM usuarios WHERE email = ? LIMIT 1`,
+    [normalizarEmail(email)]
+  );
+  return usuarios[0] ?? null;
+};
+
 const loginUsuario = async (email, password) => {
+  try {
+    const [usuarios] = await conexion.query(
+      `SELECT
+        u.id,
+        u.nombre,
+        u.email,
+        u.password,
+        u.telefono,
+        u.rol_id,
+        u.imagen_usuario_url,
+        r.nombre AS nombre_rol
+      FROM usuarios u
+      INNER JOIN roles r ON u.rol_id = r.id
+      WHERE u.email = ?
+      LIMIT 1`,
+      [normalizarEmail(email)]
+    );
 
-    try {
-
-        const [usuario] = await conexion.query(
-            `SELECT
-                u.id,
-                u.password,
-                u.rol_id,
-                r.nombre AS nombre_rol
-            FROM usuarios u
-            JOIN roles r
-                ON u.rol_id = r.id
-            WHERE u.email = ?`,
-            [email]
-        )
-
-        if (usuario.length === 0) {
-
-            return {
-                ok: false,
-                message: "el usuario no existe"
-            }
-
-        }
-
-        const datos = usuario[0]
-
-        // ================= COMPARAR PASSWORD =================
-        const passwordCorrecta = await bcrypt.compare(
-            password,
-            datos.password
-        )
-
-        if (!passwordCorrecta) {
-
-            return {
-                ok: false,
-                message: "usuario o contraseña incorrectos"
-            }
-
-        }
-
-        return {
-            ok: true,
-            id: datos.id,
-            rol: datos.rol_id,
-            nombre_rol: datos.nombre_rol
-        }
-
-    } catch (error) {
-
-        console.log(error)
-
-        return {
-            ok: false,
-            message: "error en el servidor"
-        }
-
+    if (usuarios.length === 0) {
+      return crearRespuestaError("usuario o contraseña incorrectos", 401);
     }
 
-}
+    const usuario = usuarios[0];
+    const passwordCorrecta = await bcrypt.compare(String(password ?? ""), usuario.password);
+
+    if (!passwordCorrecta) {
+      return crearRespuestaError("usuario o contraseña incorrectos", 401);
+    }
+
+    return {
+      ok: true,
+      usuario: {
+        id: usuario.id,
+        nombre: usuario.nombre,
+        email: usuario.email,
+        telefono: usuario.telefono,
+        rol_id: usuario.rol_id,
+        nombre_rol: usuario.nombre_rol,
+        imagen_usuario_url: usuario.imagen_usuario_url ?? IMAGEN_DEFAULT,
+      },
+    };
+  } catch (error) {
+    console.error("Error en loginUsuario:", error);
+    return crearRespuestaError("error en el servidor", 500);
+  }
+};
+
+const obtenerUsuarioAutenticado = async (id) => {
+  try {
+    const [usuarios] = await conexion.query(
+      `SELECT
+        u.id,
+        u.nombre,
+        u.email,
+        u.telefono,
+        u.rol_id,
+        u.imagen_usuario_url,
+        r.nombre AS nombre_rol
+      FROM usuarios u
+      INNER JOIN roles r ON u.rol_id = r.id
+      WHERE u.id = ?
+      LIMIT 1`,
+      [id]
+    );
+
+    return usuarios[0] ?? null;
+  } catch (error) {
+    console.error("Error en obtenerUsuarioAutenticado:", error);
+    return null;
+  }
+};
+
 const obtenerImagenUsuario = async (id) => {
-    try {
-        const [rows] = await conexion.query(
-            "SELECT imagen_usuario_url FROM usuarios WHERE id = ?", 
-            [id]
-        );
-        return rows[0] || null;  // null si no existe
-    } catch (error) {
-        console.log(error);
-        return null;
-    }
-}
+  try {
+    const [rows] = await conexion.query(
+      "SELECT imagen_usuario_url FROM usuarios WHERE id = ? LIMIT 1",
+      [id]
+    );
+    return rows[0] ?? null;
+  } catch (error) {
+    console.error("Error en obtenerImagenUsuario:", error);
+    return null;
+  }
+};
 
-const actualizarImagenUsuario = async (id, url) => {
-    try {
-        await conexion.query("UPDATE usuarios SET imagen_usuario_url = ? WHERE id = ?", [url, id])
-        return {ok: true}
-    } catch (error) {
-        console.log(error)
-        return {ok:false}
+const actualizarImagenUsuario = async (id, nombreArchivo) => {
+  try {
+    const [resultado] = await conexion.query(
+      "UPDATE usuarios SET imagen_usuario_url = ? WHERE id = ?",
+      [nombreArchivo ?? IMAGEN_DEFAULT, id]
+    );
+
+    if (resultado.affectedRows === 0) {
+      return crearRespuestaError("usuario no encontrado", 404);
     }
-}
+
+    return { ok: true, message: "imagen actualizada" };
+  } catch (error) {
+    console.error("Error en actualizarImagenUsuario:", error);
+    return crearRespuestaError("error al actualizar la imagen", 500);
+  }
+};
 
 const obtenerPerfil = async (id) => {
-    try {
-        const [usuario] = await conexion.query(
-            `SELECT u.nombre, u.imagen_usuario_url,
-            r.nombre AS nombre_rol
-            FROM usuarios u
-            JOIN roles r ON u.rol_id = r.id
-            WHERE u.id = ?`,
-            [id]
-        )
+  try {
+    return await obtenerUsuarioAutenticado(id);
+  } catch (error) {
+    console.error("Error en obtenerPerfil:", error);
+    return null;
+  }
+};
 
-        return usuario[0]
+const actualizarPerfilUsuario = async (id, datosPerfil) => {
+  try {
+    const nombre = String(datosPerfil.nombre ?? "").trim();
 
-    } catch (error) {
-        console.log(error)
-        return null
+    if (nombre.length < 2) {
+      return crearRespuestaError("el nombre debe tener entre 2 y 80 caracteres", 400);
     }
-}
+
+    if (nombre.length > 80) {
+      return crearRespuestaError("el nombre debe tener entre 2 y 80 caracteres", 400);
+    }
+
+    const [resultado] = await conexion.query(
+      "UPDATE usuarios SET nombre = ? WHERE id = ?",
+      [nombre, id]
+    );
+
+    if (resultado.affectedRows === 0) {
+      return crearRespuestaError("usuario no encontrado", 404);
+    }
+
+    return { ok: true, message: "perfil actualizado", nombre };
+  } catch (error) {
+    console.error("Error en actualizarPerfilUsuario:", error);
+    return crearRespuestaError("error al actualizar el perfil", 500);
+  }
+};
 
 const usuarios = async () => {
-    try {
-        const [usuario] = await conexion.query(`SELECT e.id, e.nombre, e.email, e.telefono, e.rol_id, r.nombre AS nombre_rol
-                        FROM usuarios e JOIN roles r ON e.rol_id = r.id WHERE r.nombre != 'cliente'` )
-        if(usuario.length === 0){
-            return {ok:true, usuarios: []}
-        }
-        return {ok:true, usuarios: usuario};
-    } catch (error) {
-        console.log(error)
-        return {ok:false, message:"error en la consulta"}
-    }
-}
+  try {
+    const [listaUsuarios] = await conexion.query(
+      `SELECT
+        u.id,
+        u.nombre,
+        u.email,
+        u.telefono,
+        u.rol_id,
+        u.imagen_usuario_url,
+        r.nombre AS nombre_rol
+      FROM usuarios u
+      INNER JOIN roles r ON u.rol_id = r.id
+      WHERE LOWER(r.nombre) <> 'cliente'
+      ORDER BY u.id DESC`
+    );
+
+    return { ok: true, usuarios: listaUsuarios };
+  } catch (error) {
+    console.error("Error en usuarios:", error);
+    return crearRespuestaError("error en la consulta", 500);
+  }
+};
 
 const editarUsuario = async (usuario) => {
-    try {
-        let query = "UPDATE usuarios SET nombre = ?, email = ?, telefono = ?, rol_id = ?"
-        let valores = [usuario.nombre, usuario.email, usuario.telefono, usuario.rol_id]
-        if (usuario.password) {
-            const passwordHash = await bcrypt.hash(usuario.password, 10)
-            query += ", password = ?"
-            valores.push(passwordHash)
-        }
-        query += " WHERE id = ?"
-        valores.push(usuario.id)
-        const [resultados] = await conexion.query(query, valores)
-        if(resultados.affectedRows === 0){
-            return {ok:false, message:"usuario no encontrado"}
-        }
-        return {ok:true, message:"usuario actualizado"}
-    } catch (error) {
-        console.log(error)
-        return {ok:false, message:"error en la consulta"}
+  try {
+    const id = Number(usuario.id);
+    const nombre = String(usuario.nombre ?? "").trim();
+    const email = normalizarEmail(usuario.email);
+    const telefono = String(usuario.telefono ?? "").trim();
+    const rolId = Number(usuario.rol_id);
+    const password = String(usuario.password ?? "");
+
+    const [usuarioActual] = await conexion.query("SELECT id FROM usuarios WHERE id = ? LIMIT 1", [id]);
+    if (usuarioActual.length === 0) {
+      return crearRespuestaError("usuario no encontrado", 404);
     }
-}
+
+    const [emailDuplicado] = await conexion.query(
+      "SELECT id FROM usuarios WHERE email = ? AND id <> ? LIMIT 1",
+      [email, id]
+    );
+    if (emailDuplicado.length > 0) {
+      return crearRespuestaError("ya existe un usuario con ese email", 409);
+    }
+
+    if (!(await existeRol(rolId))) {
+      return crearRespuestaError("el rol seleccionado no existe", 400);
+    }
+
+    const columnas = ["nombre = ?", "email = ?", "telefono = ?", "rol_id = ?"];
+    const valores = [nombre, email, telefono, rolId];
+
+    if (password.trim() !== "") {
+      const passwordHash = await bcrypt.hash(password, RONDAS_BCRYPT);
+      columnas.push("password = ?");
+      valores.push(passwordHash);
+    }
+
+    valores.push(id);
+
+    await conexion.query(
+      `UPDATE usuarios SET ${columnas.join(", ")} WHERE id = ?`,
+      valores
+    );
+
+    return { ok: true, message: "usuario actualizado" };
+  } catch (error) {
+    console.error("Error en editarUsuario:", error);
+    return crearRespuestaError("error en la consulta", 500);
+  }
+};
 
 const agregarUsuario = async (usuario) => {
-    try {
-        const [existe] = await conexion.query("SELECT id FROM usuarios WHERE email = ?", [usuario.email])
-        if(existe.length > 0){
-            return {ok:false, message:"ya existe un usuario con ese email"}
-        }
-        const passwordHash = await bcrypt.hash(usuario.password, 10)
-        const imagenDedault = "default.jpg"
-        const [resultados] = await conexion.query(`INSERT INTO usuarios
-             (nombre, email, password, telefono, rol_id, imagen_usuario_url)
-              VALUES (?, ?, ?, ?, ?, ?)`,
-              [usuario.nombre, usuario.email, passwordHash, usuario.telefono, usuario.rol_id, imagenDedault])
-        
-        return {ok:true, message:"usuario agregado"}
-    } catch (error) {
-        console.log(error)
-        return {ok:false, message:"error en la consulta"}
-    }
-}
+  try {
+    const nombre = String(usuario.nombre ?? "").trim();
+    const email = normalizarEmail(usuario.email);
+    const telefono = String(usuario.telefono ?? "").trim();
+    const rolId = Number(usuario.rol_id);
+    const password = String(usuario.password ?? "");
 
-
-const obtenerRoles = async () =>{
-    try {
-        const [roles] = await conexion.query("SELECT id, nombre FROM roles WHERE nombre != 'cliente'")
-        return {ok:true, roles: roles}
-    } catch (error) {
-        console.log(error)
-        return {ok:false, message:"error al obtener roles"}
+    const usuarioExistente = await obtenerUsuarioPorEmail(email);
+    if (usuarioExistente) {
+      return crearRespuestaError("ya existe un usuario con ese email", 409);
     }
-}
+
+    if (!(await existeRol(rolId))) {
+      return crearRespuestaError("el rol seleccionado no existe", 400);
+    }
+
+    const passwordHash = await bcrypt.hash(password, RONDAS_BCRYPT);
+
+    await conexion.query(
+      `INSERT INTO usuarios
+        (nombre, email, password, telefono, rol_id, imagen_usuario_url)
+       VALUES (?, ?, ?, ?, ?, ?)`,
+      [nombre, email, passwordHash, telefono, rolId, IMAGEN_DEFAULT]
+    );
+
+    return { ok: true, message: "usuario agregado" };
+  } catch (error) {
+    console.error("Error en agregarUsuario:", error);
+    return crearRespuestaError("error en la consulta", 500);
+  }
+};
+
+const obtenerRoles = async () => {
+  try {
+    const [roles] = await conexion.query(
+      "SELECT id, nombre FROM roles WHERE LOWER(nombre) <> 'cliente' ORDER BY nombre ASC"
+    );
+    return { ok: true, roles };
+  } catch (error) {
+    console.error("Error en obtenerRoles:", error);
+    return crearRespuestaError("error al obtener roles", 500);
+  }
+};
 
 const eliminarUsuario = async (id) => {
-    try {
-        const [resultados] = await conexion.query(`DELETE FROM usuarios WHERE id = ?`, [id])
-        if(resultados.affectedRows === 0){
-            return {ok:false, message:"usuario no encontrado"}
-        }
-        return {ok:true, message:"usuario eliminado"}
-    } catch (error) {
-        console.log(error)
-        return {ok:false, message:"error al eliminar usuario"}
-    }
-}
+  try {
+    const [resultado] = await conexion.query("DELETE FROM usuarios WHERE id = ?", [Number(id)]);
 
-// exportaciones 
-export{
-    loginUsuario,
-    obtenerImagenUsuario,
-    actualizarImagenUsuario,
-    obtenerPerfil,
-    usuarios,
-    editarUsuario,
-    obtenerRoles,
-    agregarUsuario,
-    eliminarUsuario
-}
+    if (resultado.affectedRows === 0) {
+      return crearRespuestaError("usuario no encontrado", 404);
+    }
+
+    return { ok: true, message: "usuario eliminado" };
+  } catch (error) {
+    console.error("Error en eliminarUsuario:", error);
+    return crearRespuestaError("error al eliminar usuario", 500);
+  }
+};
+
+export {
+  loginUsuario,
+  obtenerUsuarioAutenticado,
+  obtenerImagenUsuario,
+  actualizarImagenUsuario,
+  obtenerPerfil,
+  actualizarPerfilUsuario,
+  usuarios,
+  editarUsuario,
+  obtenerRoles,
+  agregarUsuario,
+  eliminarUsuario,
+};
