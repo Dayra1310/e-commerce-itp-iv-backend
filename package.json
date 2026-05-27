@@ -1,13 +1,13 @@
 {
   "name": "backend",
   "version": "1.0.0",
-  "description": "Backend Express para autenticación, perfil, imágenes y administración de usuarios del e-commerce ITP IV.",
+  "description": "",
   "main": "index.js",
   "scripts": {
-    "dev": "nodemon index.js",
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "startt": "nodemon -r dotenv/config index.js",
     "start": "node index.js",
-    "check": "node --check config.js && node --check index.js && node --check db.js",
-    "diagnostico": "node --trace-uncaught --trace-warnings index.js"
+    "dev": "nodemon index.js"
   },
   "keywords": [],
   "author": "",
