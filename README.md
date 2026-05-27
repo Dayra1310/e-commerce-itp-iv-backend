@@ -35,6 +35,9 @@ PORT=4200
 ```
 
 El archivo `.env.example` contiene la plantilla de variables requeridas.
+EN ESE ARCHIVO SOLO REMPLAZAN 2 COSAS
+1. sus credenciales de la DB
+2. si les da error de acceso, en vez de JWT_KEY la cambian a SECRET_KEY
 
 ## Configuración
 
