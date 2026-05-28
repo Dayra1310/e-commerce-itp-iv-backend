@@ -46,10 +46,30 @@ const upload = multer({ storage });
 const puerto = 3001;
 const app = express();
 
+const origenesPermitidos = [
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+    "http://localhost:5500",
+    "http://127.0.0.1:5500",
+    "http://localhost:5501",
+    "http://127.0.0.1:5501",
+]
+
 app.use(cors({
-    origin: true,
+    origin: (origen, callback) => {
+        if(!origen){
+            return callback(null, true)
+        }
+        if(origenesPermitidos.includes(origen)){
+            return callback(null, true)
+        }
+        return callback(new Error("origen no permitido por CORS"))
+    },
     credentials: true
 }));
+
+
+
 app.use(express.json());
 app.use(cookieParser());
 
