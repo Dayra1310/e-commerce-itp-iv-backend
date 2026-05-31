@@ -248,5 +248,6 @@ export {
     editarUsuario,
     obtenerRoles,
     agregarUsuario,
-    eliminarUsuario
+    eliminarUsuario,
+    conexion
 };

@@ -18,6 +18,12 @@ import {
     agregarUsuario,
     eliminarUsuario
 } from "./db.js";
+import cartRoutes from "./src/cart/cart.routes.js";
+import ordersRoutes from "./src/orders/orders.routes.js";
+import { cancelarPedidosExpirados } from "./src/orders/orders.db.js";
+import cuponesRoutes from "./src/cupones/cupones.routes.js";
+import direccionesRoutes from "./src/direcciones/direcciones.routes.js";
+import pagosRoutes from "./src/pagos/pagos.routes.js";
 
 
 const PROJECT_ROOT = process.cwd();
@@ -122,7 +128,7 @@ const verificarToken = (req, res, next) => {
 const esAdmin = (req, res, next) => {
     const nombreRol = String(req.usuario?.nombre_rol || "").trim().toLowerCase();
 
-    if (nombreRol !== "administrador") {
+    if (nombreRol !== "admin") {
         return res.status(403).json({ ok: false, message: "acceso denegado" });
     }
 
@@ -283,7 +289,30 @@ app.delete("/eliminarUsuario/:id", verificarToken, esAdmin, async (req, res) => 
     }
 })
 
+// ========== CARRITO DE COMPRAS ==========
+cartRoutes(app, verificarToken);
+
+// ========== CHECKOUT Y PEDIDOS ==========
+ordersRoutes(app, verificarToken, esAdmin);
+
+// ========== CUPONES DE DESCUENTO ==========
+cuponesRoutes(app, verificarToken);
+
+// ========== DIRECCIONES ==========
+direccionesRoutes(app, verificarToken);
+
+// ========== PASARELA DE PAGOS (ePayco) ==========
+pagosRoutes(app, verificarToken);
+
 // ========== INICIAR SERVIDOR ==========
 app.listen(puerto, () => {
     console.log(`Servidor corriendo en http://localhost:${puerto}`);
 });
+
+// ========== LIMPIEZA DE PEDIDOS EXPIRADOS (cada 60 seg) ==========
+setInterval(async () => {
+    const resultado = await cancelarPedidosExpirados();
+    if (resultado.ok && resultado.cancelados > 0) {
+        console.log(`Limpieza: ${resultado.cancelados} pedido(s) cancelado(s) por expiración`);
+    }
+}, 60000);
