@@ -24,6 +24,7 @@ import { cancelarPedidosExpirados } from "./src/orders/orders.db.js";
 import cuponesRoutes from "./src/cupones/cupones.routes.js";
 import direccionesRoutes from "./src/direcciones/direcciones.routes.js";
 import pagosRoutes from "./src/pagos/pagos.routes.js";
+import soporteRoutes from "./src/soporte/soporte.routes.js";
 
 
 const PROJECT_ROOT = process.cwd();
@@ -303,6 +304,9 @@ direccionesRoutes(app, verificarToken);
 
 // ========== PASARELA DE PAGOS (ePayco) ==========
 pagosRoutes(app, verificarToken);
+
+// ========== SOPORTE Y TICKETS ==========
+soporteRoutes(app, verificarToken, esAdmin);
 
 // ========== INICIAR SERVIDOR ==========
 app.listen(puerto, () => {
