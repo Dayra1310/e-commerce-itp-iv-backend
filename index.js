@@ -283,7 +283,8 @@ app.delete("/eliminarUsuario/:id", verificarToken, esAdmin, async (req, res) => 
     }
 })
 
-// ========== INICIAR SERVIDOR ==========
+// ========== INICIAR SERVIDOR ===========
+// Nota: para desarrollo se recomienda usar nodemon, que reinicia el servidor automáticamente al detectar cambios
 app.listen(puerto, () => {
     console.log(`Servidor corriendo en http://localhost:${puerto}`);
 });
