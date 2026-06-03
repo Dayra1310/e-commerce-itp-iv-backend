@@ -35,6 +35,7 @@ const conexion = mysql.createPool(config);
 
 const normalizarTexto = (valor) => String(valor ?? "").trim();
 const normalizarId = (valor) => Number(valor);
+const normalizarNumero = (valor) => Number(valor ?? 0);
 
 const esHashBcryptValido = (valor) => /^\$2[aby]\$\d{2}\$[./A-Za-z0-9]{53}$/.test(String(valor ?? ""));
 
@@ -221,6 +222,357 @@ const obtenerRoles = async () => {
     }
 };
 
+const obtenerResumenDashboard = async () => {
+    try {
+        const [totalProductos] = await conexion.query(
+            `SELECT COUNT(*) AS totalProductos
+            FROM productos`
+        );
+
+        const [totalPedidos] = await conexion.query(
+            `SELECT COUNT(p.id) AS totalPedidos
+            FROM pedidos p
+            JOIN usuarios u
+                ON p.usuario_id = u.id
+            JOIN roles r
+                ON u.rol_id = r.id
+            WHERE LOWER(TRIM(r.nombre)) = 'cliente'`
+        );
+
+        const [totalClientes] = await conexion.query(
+            `SELECT COUNT(u.id) AS totalClientes
+            FROM usuarios u
+            JOIN roles r
+                ON u.rol_id = r.id
+            WHERE LOWER(TRIM(r.nombre)) = 'cliente'`
+        );
+
+        const [ventasTotales] = await conexion.query(
+            `SELECT COALESCE(SUM(p.total), 0) AS ventasTotales
+            FROM pedidos p
+            JOIN usuarios u
+                ON p.usuario_id = u.id
+            JOIN roles r
+                ON u.rol_id = r.id
+            JOIN pago pg
+                ON pg.id_pedido = p.id
+            WHERE LOWER(TRIM(r.nombre)) = 'cliente'
+                AND pg.estado_pago = 'pagado'`
+        );
+
+        return {
+            ok: true,
+            resumen: {
+                totalProductos: normalizarNumero(totalProductos[0]?.totalProductos),
+                totalPedidos: normalizarNumero(totalPedidos[0]?.totalPedidos),
+                totalClientes: normalizarNumero(totalClientes[0]?.totalClientes),
+                ventasTotales: normalizarNumero(ventasTotales[0]?.ventasTotales)
+            }
+        };
+    } catch (error) {
+        console.error("Error en obtenerResumenDashboard:", error);
+        return { ok: false, message: "error al obtener resumen del dashboard" };
+    }
+};
+
+const obtenerProductosTopDashboard = async () => {
+    try {
+        const [productos] = await conexion.query(
+            `SELECT
+                pr.nombre AS nombre,
+                COALESCE(SUM(dp.cantidad), 0) AS vendidos
+            FROM detalle_pedido dp
+            JOIN pedidos p
+                ON dp.pedido_id = p.id
+            JOIN usuarios u
+                ON p.usuario_id = u.id
+            JOIN roles r
+                ON u.rol_id = r.id
+            JOIN productos pr
+                ON dp.producto_id = pr.id
+            WHERE LOWER(TRIM(r.nombre)) = 'cliente'
+                AND p.estado <> 'cancelado'
+            GROUP BY pr.id, pr.nombre
+            ORDER BY vendidos DESC, pr.nombre ASC
+            LIMIT 10`
+        );
+
+        return {
+            ok: true,
+            productos: productos.map((producto) => ({
+                nombre: producto.nombre,
+                vendidos: normalizarNumero(producto.vendidos)
+            }))
+        };
+    } catch (error) {
+        console.error("Error en obtenerProductosTopDashboard:", error);
+        return { ok: false, message: "error al obtener productos top del dashboard" };
+    }
+};
+
+const obtenerCategoriasDashboard = async () => {
+    try {
+        const [categorias] = await conexion.query(
+            `SELECT
+                c.nombre AS categoria,
+                COUNT(p.id) AS cantidad
+            FROM categorias c
+            LEFT JOIN productos p
+                ON p.categoria_id = c.id
+            GROUP BY c.id, c.nombre
+            ORDER BY cantidad DESC, c.nombre ASC`
+        );
+
+        return {
+            ok: true,
+            categorias: categorias.map((categoria) => ({
+                categoria: categoria.categoria,
+                cantidad: normalizarNumero(categoria.cantidad)
+            }))
+        };
+    } catch (error) {
+        console.error("Error en obtenerCategoriasDashboard:", error);
+        return { ok: false, message: "error al obtener categorías del dashboard" };
+    }
+};
+
+const obtenerMetricasProductos = async () => {
+    try {
+        const [metricas] = await conexion.query(
+            `SELECT
+                COUNT(*) AS total,
+                COALESCE(SUM(CASE WHEN estado = 'activo' THEN 1 ELSE 0 END), 0) AS activos,
+                COALESCE(SUM(CASE WHEN stock <= 0 THEN 1 ELSE 0 END), 0) AS sinStock,
+                COALESCE(SUM(CASE WHEN stock > 0 AND stock <= 10 THEN 1 ELSE 0 END), 0) AS bajoStock
+            FROM productos`
+        );
+
+        return {
+            ok: true,
+            metricas: {
+                total: normalizarNumero(metricas[0]?.total),
+                activos: normalizarNumero(metricas[0]?.activos),
+                sinStock: normalizarNumero(metricas[0]?.sinStock),
+                bajoStock: normalizarNumero(metricas[0]?.bajoStock)
+            }
+        };
+    } catch (error) {
+        console.error("Error en obtenerMetricasProductos:", error);
+        return { ok: false, message: "error al obtener métricas de productos" };
+    }
+};
+
+const obtenerProductosBajoStock = async () => {
+    try {
+        const [productos] = await conexion.query(
+            `SELECT
+                id,
+                nombre,
+                stock
+            FROM productos
+            WHERE stock > 0
+                AND stock <= 10
+                AND estado = 'activo'
+            ORDER BY stock ASC, nombre ASC`
+        );
+
+        return {
+            ok: true,
+            productos: productos.map((producto) => ({
+                id: normalizarNumero(producto.id),
+                nombre: producto.nombre,
+                stock: normalizarNumero(producto.stock)
+            }))
+        };
+    } catch (error) {
+        console.error("Error en obtenerProductosBajoStock:", error);
+        return { ok: false, message: "error al obtener productos con bajo stock" };
+    }
+};
+
+const obtenerProductosTopVendidos = async () => {
+    try {
+        const [productos] = await conexion.query(
+            `SELECT
+                pr.nombre AS nombre,
+                COALESCE(SUM(dp.cantidad), 0) AS vendidos
+            FROM detalle_pedido dp
+            JOIN pedidos p
+                ON dp.pedido_id = p.id
+            JOIN usuarios u
+                ON p.usuario_id = u.id
+            JOIN roles r
+                ON u.rol_id = r.id
+            JOIN productos pr
+                ON dp.producto_id = pr.id
+            WHERE LOWER(TRIM(r.nombre)) = 'cliente'
+                AND p.estado <> 'cancelado'
+            GROUP BY pr.id, pr.nombre
+            ORDER BY vendidos DESC, pr.nombre ASC
+            LIMIT 10`
+        );
+
+        return {
+            ok: true,
+            productos: productos.map((producto) => ({
+                nombre: producto.nombre,
+                vendidos: normalizarNumero(producto.vendidos)
+            }))
+        };
+    } catch (error) {
+        console.error("Error en obtenerProductosTopVendidos:", error);
+        return { ok: false, message: "error al obtener productos más vendidos" };
+    }
+};
+
+const obtenerProductosCategorias = async () => {
+    try {
+        const [categorias] = await conexion.query(
+            `SELECT
+                c.nombre AS nombre,
+                COUNT(p.id) AS productos
+            FROM categorias c
+            LEFT JOIN productos p
+                ON p.categoria_id = c.id
+            GROUP BY c.id, c.nombre
+            ORDER BY productos DESC, c.nombre ASC`
+        );
+
+        return {
+            ok: true,
+            categorias: categorias.map((categoria) => ({
+                nombre: categoria.nombre,
+                productos: normalizarNumero(categoria.productos)
+            }))
+        };
+    } catch (error) {
+        console.error("Error en obtenerProductosCategorias:", error);
+        return { ok: false, message: "error al obtener productos por categoría" };
+    }
+};
+
+const obtenerReporteVentas = async () => {
+    try {
+        const [ventas] = await conexion.query(
+            `SELECT
+                p.id AS idPedido,
+                DATE_FORMAT(p.fecha, '%Y-%m-%d') AS fecha,
+                COALESCE(CONCAT(c.nombres, ' ', c.apellidos), u.nombre) AS cliente,
+                pr.nombre AS producto,
+                dp.cantidad AS cantidad,
+                dp.precio_unitario AS precioUnitario,
+                COALESCE(dp.subtotal, dp.cantidad * dp.precio_unitario) AS total,
+                COALESCE(pg.estado_pago, p.estado) AS estado
+            FROM detalle_pedido dp
+            JOIN pedidos p
+                ON dp.pedido_id = p.id
+            JOIN usuarios u
+                ON p.usuario_id = u.id
+            JOIN roles r
+                ON u.rol_id = r.id
+            JOIN productos pr
+                ON dp.producto_id = pr.id
+            LEFT JOIN clientes c
+                ON p.cliente_id = c.id
+            LEFT JOIN pago pg
+                ON pg.id_pedido = p.id
+            WHERE LOWER(TRIM(r.nombre)) = 'cliente'
+            ORDER BY p.fecha DESC, p.id DESC, dp.id ASC`
+        );
+
+        return {
+            ok: true,
+            ventas: ventas.map((venta) => ({
+                idPedido: normalizarNumero(venta.idPedido),
+                fecha: venta.fecha,
+                cliente: venta.cliente,
+                producto: venta.producto,
+                cantidad: normalizarNumero(venta.cantidad),
+                precioUnitario: normalizarNumero(venta.precioUnitario),
+                total: normalizarNumero(venta.total),
+                estado: venta.estado
+            }))
+        };
+    } catch (error) {
+        console.error("Error en obtenerReporteVentas:", error);
+        return { ok: false, message: "error al obtener reporte de ventas" };
+    }
+};
+
+const obtenerReportePedidos = async () => {
+    try {
+        const [pedidos] = await conexion.query(
+            `SELECT
+                p.id AS idPedido,
+                COALESCE(CONCAT(c.nombres, ' ', c.apellidos), u.nombre) AS cliente,
+                DATE_FORMAT(p.fecha, '%Y-%m-%d') AS fecha,
+                p.estado AS estado,
+                p.total AS total
+            FROM pedidos p
+            JOIN usuarios u
+                ON p.usuario_id = u.id
+            JOIN roles r
+                ON u.rol_id = r.id
+            LEFT JOIN clientes c
+                ON p.cliente_id = c.id
+            WHERE LOWER(TRIM(r.nombre)) = 'cliente'
+            ORDER BY p.fecha DESC, p.id DESC`
+        );
+
+        return {
+            ok: true,
+            pedidos: pedidos.map((pedido) => ({
+                idPedido: normalizarNumero(pedido.idPedido),
+                cliente: pedido.cliente,
+                fecha: pedido.fecha,
+                estado: pedido.estado,
+                total: normalizarNumero(pedido.total)
+            }))
+        };
+    } catch (error) {
+        console.error("Error en obtenerReportePedidos:", error);
+        return { ok: false, message: "error al obtener reporte de pedidos" };
+    }
+};
+
+const obtenerReporteInventario = async () => {
+    try {
+        const [inventario] = await conexion.query(
+            `SELECT
+                p.id AS id,
+                p.nombre AS producto,
+                COALESCE(c.nombre, 'Sin categoría') AS categoria,
+                p.stock AS stock,
+                p.precio AS precio,
+                CASE
+                    WHEN p.estado = 'inactivo' THEN 'Inactivo'
+                    WHEN p.stock <= 0 THEN 'Sin stock'
+                    WHEN p.stock <= 10 THEN 'Bajo stock'
+                    ELSE 'Disponible'
+                END AS estado
+            FROM productos p
+            LEFT JOIN categorias c
+                ON p.categoria_id = c.id
+            ORDER BY p.nombre ASC`
+        );
+
+        return {
+            ok: true,
+            inventario: inventario.map((producto) => ({
+                id: normalizarNumero(producto.id),
+                producto: producto.producto,
+                categoria: producto.categoria,
+                stock: normalizarNumero(producto.stock),
+                precio: normalizarNumero(producto.precio),
+                estado: producto.estado
+            }))
+        };
+    } catch (error) {
+        console.error("Error en obtenerReporteInventario:", error);
+        return { ok: false, message: "error al obtener reporte de inventario" };
+    }
+};
+
 const eliminarUsuario = async (id) => {
     try {
         const idUsuario = normalizarId(id);
@@ -248,5 +600,15 @@ export {
     editarUsuario,
     obtenerRoles,
     agregarUsuario,
-    eliminarUsuario
+    eliminarUsuario,
+    obtenerResumenDashboard,
+    obtenerProductosTopDashboard,
+    obtenerCategoriasDashboard,
+    obtenerMetricasProductos,
+    obtenerProductosBajoStock,
+    obtenerProductosTopVendidos,
+    obtenerProductosCategorias,
+    obtenerReporteVentas,
+    obtenerReportePedidos,
+    obtenerReporteInventario
 };
