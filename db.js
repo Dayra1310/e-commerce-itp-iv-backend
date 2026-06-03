@@ -239,6 +239,8 @@ const eliminarUsuario = async (id) => {
     }
 };
 
+// hola manuel
+
 export {
     loginUsuario,
     obtenerImagenUsuario,
