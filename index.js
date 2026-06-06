@@ -16,7 +16,17 @@ import {
     editarUsuario,
     obtenerRoles,
     agregarUsuario,
-    eliminarUsuario
+    eliminarUsuario,
+    obtenerResumenDashboard,
+    obtenerProductosTopDashboard,
+    obtenerCategoriasDashboard,
+    obtenerMetricasProductos,
+    obtenerProductosBajoStock,
+    obtenerProductosTopVendidos,
+    obtenerProductosCategorias,
+    obtenerReporteVentas,
+    obtenerReportePedidos,
+    obtenerReporteInventario
 } from "./db.js";
 
 
@@ -124,6 +134,16 @@ const esAdmin = (req, res, next) => {
 
     if (nombreRol !== "administrador") {
         return res.status(403).json({ ok: false, message: "acceso denegado" });
+    }
+
+    next();
+};
+
+const esUsuarioInterno = (req, res, next) => {
+    const nombreRol = String(req.usuario?.nombre_rol || "").trim().toLowerCase();
+
+    if (nombreRol === "cliente") {
+        return res.status(403).json({ ok: false, message: "acceso denegado para clientes" });
     }
 
     next();
@@ -283,8 +303,138 @@ app.delete("/eliminarUsuario/:id", verificarToken, esAdmin, async (req, res) => 
     }
 })
 
-// ========== INICIAR SERVIDOR ===========
-// Nota: para desarrollo se recomienda usar nodemon, que reinicia el servidor automáticamente al detectar cambios
+// ========== ENDPOINTS DE DASHBOARD, PRODUCTOS Y REPORTES ==========
+app.get("/dashboard/resumen", verificarToken, esUsuarioInterno, async (req, res) => {
+    try {
+        const resultados = await obtenerResumenDashboard()
+        if (!resultados.ok) {
+            return res.status(500).json({ ok: false, message: resultados.message })
+        }
+        return res.json(resultados.resumen)
+    } catch (error) {
+        console.error(" Error en /dashboard/resumen:", error);
+        return res.status(500).json({ ok: false, message: "error interno al obtener resumen del dashboard" });
+    }
+})
+
+app.get("/dashboard/productos-top", verificarToken, esUsuarioInterno, async (req, res) => {
+    try {
+        const resultados = await obtenerProductosTopDashboard()
+        if (!resultados.ok) {
+            return res.status(500).json({ ok: false, message: resultados.message })
+        }
+        return res.json(resultados.productos)
+    } catch (error) {
+        console.error(" Error en /dashboard/productos-top:", error);
+        return res.status(500).json({ ok: false, message: "error interno al obtener productos top del dashboard" });
+    }
+})
+
+app.get("/dashboard/categorias", verificarToken, esUsuarioInterno, async (req, res) => {
+    try {
+        const resultados = await obtenerCategoriasDashboard()
+        if (!resultados.ok) {
+            return res.status(500).json({ ok: false, message: resultados.message })
+        }
+        return res.json(resultados.categorias)
+    } catch (error) {
+        console.error(" Error en /dashboard/categorias:", error);
+        return res.status(500).json({ ok: false, message: "error interno al obtener categorías del dashboard" });
+    }
+})
+
+app.get("/productos/metricas", verificarToken, esUsuarioInterno, async (req, res) => {
+    try {
+        const resultados = await obtenerMetricasProductos()
+        if (!resultados.ok) {
+            return res.status(500).json({ ok: false, message: resultados.message })
+        }
+        return res.json(resultados.metricas)
+    } catch (error) {
+        console.error(" Error en /productos/metricas:", error);
+        return res.status(500).json({ ok: false, message: "error interno al obtener métricas de productos" });
+    }
+})
+
+app.get("/productos/bajo-stock", verificarToken, esUsuarioInterno, async (req, res) => {
+    try {
+        const resultados = await obtenerProductosBajoStock()
+        if (!resultados.ok) {
+            return res.status(500).json({ ok: false, message: resultados.message })
+        }
+        return res.json(resultados.productos)
+    } catch (error) {
+        console.error(" Error en /productos/bajo-stock:", error);
+        return res.status(500).json({ ok: false, message: "error interno al obtener productos con bajo stock" });
+    }
+})
+
+app.get("/productos/top-vendidos", verificarToken, esUsuarioInterno, async (req, res) => {
+    try {
+        const resultados = await obtenerProductosTopVendidos()
+        if (!resultados.ok) {
+            return res.status(500).json({ ok: false, message: resultados.message })
+        }
+        return res.json(resultados.productos)
+    } catch (error) {
+        console.error(" Error en /productos/top-vendidos:", error);
+        return res.status(500).json({ ok: false, message: "error interno al obtener productos más vendidos" });
+    }
+})
+
+app.get("/productos/categorias", verificarToken, esUsuarioInterno, async (req, res) => {
+    try {
+        const resultados = await obtenerProductosCategorias()
+        if (!resultados.ok) {
+            return res.status(500).json({ ok: false, message: resultados.message })
+        }
+        return res.json(resultados.categorias)
+    } catch (error) {
+        console.error(" Error en /productos/categorias:", error);
+        return res.status(500).json({ ok: false, message: "error interno al obtener productos por categoría" });
+    }
+})
+
+app.get("/reportes/ventas", verificarToken, esUsuarioInterno, async (req, res) => {
+    try {
+        const resultados = await obtenerReporteVentas()
+        if (!resultados.ok) {
+            return res.status(500).json({ ok: false, message: resultados.message })
+        }
+        return res.json(resultados.ventas)
+    } catch (error) {
+        console.error(" Error en /reportes/ventas:", error);
+        return res.status(500).json({ ok: false, message: "error interno al obtener reporte de ventas" });
+    }
+})
+
+app.get("/reportes/pedidos", verificarToken, esUsuarioInterno, async (req, res) => {
+    try {
+        const resultados = await obtenerReportePedidos()
+        if (!resultados.ok) {
+            return res.status(500).json({ ok: false, message: resultados.message })
+        }
+        return res.json(resultados.pedidos)
+    } catch (error) {
+        console.error(" Error en /reportes/pedidos:", error);
+        return res.status(500).json({ ok: false, message: "error interno al obtener reporte de pedidos" });
+    }
+})
+
+app.get("/reportes/inventario", verificarToken, esUsuarioInterno, async (req, res) => {
+    try {
+        const resultados = await obtenerReporteInventario()
+        if (!resultados.ok) {
+            return res.status(500).json({ ok: false, message: resultados.message })
+        }
+        return res.json(resultados.inventario)
+    } catch (error) {
+        console.error(" Error en /reportes/inventario:", error);
+        return res.status(500).json({ ok: false, message: "error interno al obtener reporte de inventario" });
+    }
+})
+
+// ========== INICIAR SERVIDOR ==========
 app.listen(puerto, () => {
     console.log(`Servidor corriendo en http://localhost:${puerto}`);
 });
