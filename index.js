@@ -18,6 +18,13 @@ import {
     agregarUsuario,
     eliminarUsuario
 } from "./db.js";
+import cartRoutes from "./src/cart/cart.routes.js";
+import ordersRoutes from "./src/orders/orders.routes.js";
+import { cancelarPedidosExpirados } from "./src/orders/orders.db.js";
+import cuponesRoutes from "./src/cupones/cupones.routes.js";
+import direccionesRoutes from "./src/direcciones/direcciones.routes.js";
+import pagosRoutes from "./src/pagos/pagos.routes.js";
+import soporteRoutes from "./src/soporte/soporte.routes.js";
 
 
 const PROJECT_ROOT = process.cwd();
@@ -234,7 +241,6 @@ app.put("/usuario/:id", verificarToken, esAdmin, async (req, res) => {
         console.log(error)
         return res.status(500).json({ ok: false, message: "error interno al actualizar usuario" })
     }
-
 })
 
 app.get("/roles", verificarToken, esAdmin, async (req, res) => {
@@ -283,8 +289,41 @@ app.delete("/eliminarUsuario/:id", verificarToken, esAdmin, async (req, res) => 
     }
 })
 
-// ========== INICIAR SERVIDOR ===========
-// Nota: para desarrollo se recomienda usar nodemon, que reinicia el servidor automáticamente al detectar cambios
-app.listen(puerto, () => {
-    console.log(`Servidor corriendo en http://localhost:${puerto}`);
-});
+// ========== CARRITO DE COMPRAS ==========
+cartRoutes(app, verificarToken);
+
+// ========== CHECKOUT Y PEDIDOS ==========
+ordersRoutes(app, verificarToken, esAdmin);
+
+// ========== CUPONES DE DESCUENTO ==========
+cuponesRoutes(app, verificarToken);
+
+// ========== DIRECCIONES ==========
+direccionesRoutes(app, verificarToken);
+
+// ========== PASARELA DE PAGOS (ePayco) ==========
+pagosRoutes(app, verificarToken);
+
+// ========== SOPORTE Y TICKETS ==========
+soporteRoutes(app, verificarToken, esAdmin);
+
+// ========== INICIAR SERVIDOR (solo si se ejecuta directamente) ==========
+// Si start.js importa este archivo, NO inicia el servidor aqui.
+// start.js se encarga de llamar app.listen() despues de agregar los modulos.
+const esEjecucionDirecta = process.argv[1] && process.argv[1].includes("index.js");
+
+if (esEjecucionDirecta) {
+    app.listen(puerto, () => {
+        console.log(`Servidor corriendo en http://localhost:${puerto}`);
+    });
+
+    setInterval(async () => {
+        const resultado = await cancelarPedidosExpirados();
+        if (resultado.ok && resultado.cancelados > 0) {
+            console.log(`Limpieza: ${resultado.cancelados} pedido(s) cancelado(s) por expiración`);
+        }
+    }, 60000);
+}
+
+// ========== EXPORTAR para start.js ==========
+export { app, puerto };

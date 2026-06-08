@@ -24,7 +24,7 @@ const config = {
     port: obtenerNumeroEntorno(obtenerVariableEntorno("DB_PORT", "PORT_DB"), 3306),
     user: obtenerVariableEntorno("DB_USER", "USER") || "root",
     password: obtenerVariableEntorno("DB_PASSWORD", "PASSWORD"),
-    database: obtenerVariableEntorno("DB_NAME", "DATABASE") || "ecommerce_tableros",
+    database: obtenerVariableEntorno("DB_NAME", "DATABASE") || "ecommerce_tableros_02",
     waitForConnections: true,
     connectionLimit: obtenerNumeroEntorno(obtenerVariableEntorno("DB_CONNECTION_LIMIT"), 10),
     queueLimit: 0
@@ -111,7 +111,7 @@ const actualizarImagenUsuario = async (id, url) => {
 const obtenerPerfil = async (id) => {
     try {
         const [usuario] = await conexion.query(
-            `SELECT u.nombre, u.imagen_usuario_url,
+            `SELECT u.nombre, u.imagen_usuario_url, u.email, u.telefono, u.fecha_registro,
             r.nombre AS nombre_rol
             FROM usuarios u
             JOIN roles r ON u.rol_id = r.id
@@ -239,8 +239,6 @@ const eliminarUsuario = async (id) => {
     }
 };
 
-// hola manuel
-
 export {
     loginUsuario,
     obtenerImagenUsuario,
@@ -250,5 +248,6 @@ export {
     editarUsuario,
     obtenerRoles,
     agregarUsuario,
-    eliminarUsuario
+    eliminarUsuario,
+    conexion
 };
